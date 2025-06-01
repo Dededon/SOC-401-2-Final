@@ -1,0 +1,107 @@
+---
+title: "Final"
+output: html_notebook
+---
+```{r}
+library(tidyverse)
+library(readxl)
+df_demo <- read_csv('C:/Users/aruba/Documents/COURSE/ISR/police_beat_demo_cleaned.csv')
+df_stops <- read_excel('C:/Users/aruba/Documents/COURSE/ISR/stops_cleaned.xlsx')
+```
+
+
+
+```{r}
+df_merge = merge(x = df_stops, y = df_demo, by = "beat", all.x = TRUE)
+df = df_merge[, c('outcome', 'complexion', 'race', 'female', 'hispanic', 'neighborhood_race', 'education', 'foodstamp', 'diversity')]
+```
+```{r}
+library(modelsummary)
+
+datasummary_skim(df, output = 'data_skim.docx')
+```
+
+```{r}
+df$neighborhood_race <- relevel(as.factor(df$neighborhood_race), ref = "white majority")
+df$race <- relevel(as.factor(df$race), ref = "white")
+df$outcome <- relevel(as.factor(df$outcome), ref = "stop")
+
+```
+
+
+```{r}
+library(nnet)
+model.1 <- multinom(
+  outcome ~ race + complexion + hispanic + female,
+  data = df)
+summary(model.1)
+```
+```{r}
+library(nnet)
+model.2 <- multinom(
+  outcome ~ race + complexion + hispanic + female + race * complexion,
+  data = df)
+summary(model.2)
+```
+```{r}
+model.3 <- multinom(
+  outcome ~ race + complexion + hispanic + female + hispanic * complexion,
+  data = df)
+```
+```{r}
+vote.models <- list(
+  "Main Effects" = model.1,
+  "With Interaction" = model.2,
+  "Hispanic Interaction " = model.3
+)
+```
+
+
+```{r}
+vote.model.table <- modelsummary(
+  vote.models,
+  shape = term + response ~ model + statistic,
+  exponentiate = TRUE,      # RRRs (Relative Risk Ratios)
+  stars = TRUE,             # Significance stars
+ # coef_map = coef,          # Optional: custom names for terms
+ # notes = str_c("N = ", glance(model.1)$nobs),  # Use glance to get sample size
+  title = "Multinomial Logit Models (RRR)",
+  output = 'individual_trait_new.docx'
+)
+```
+```{r}
+df$renter = df_merge$renter
+```
+
+```{r}
+model.4 <- multinom(
+  outcome ~ race + complexion + hispanic + female + education + foodstamp + renter,
+  data = df)
+model.5 <- multinom(
+  outcome ~ race + complexion + hispanic + female + neighborhood_race + diversity,
+  data = df)
+model.6 <- multinom(
+  outcome ~ race + complexion + hispanic + female + neighborhood_race + diversity + neighborhood_race * complexion,
+  data = df)
+
+neighborhood.models <- list(
+  "Neighborhood Socioeconmic" = model.4,
+  "Neighborhood Race" = model.5,
+  "Neighborhood Interaction" = model.6
+)
+```
+
+```{r}
+neighborhood.table <- modelsummary(
+  neighborhood.models,
+  shape = term + response ~ model + statistic,
+  exponentiate = TRUE,      # RRRs (Relative Risk Ratios)
+  stars = TRUE,             # Significance stars
+ # coef_map = coef,          # Optional: custom names for terms
+ # notes = str_c("N = ", glance(model.1)$nobs),  # Use glance to get sample size
+  title = "Multinomial Logit Models (RRR)",
+  output = 'neighborhood.docx'
+)
+```
+
+
